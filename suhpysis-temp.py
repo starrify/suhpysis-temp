@@ -3,6 +3,7 @@
 
 import sys
 assert sys.version_info.major == 2  # For now for Python 2 only
+import tempfile
 
 import wx
 import pyscreenshot
@@ -10,6 +11,8 @@ import numpy
 import matplotlib.pyplot
 import matplotlib.widgets
 import pytesseract
+import PIL
+import PIL.ImageFilter
 
 # For fixing pyinstaller issues
 import Tkinter
@@ -99,6 +102,7 @@ class SuhpysisFrame(wx.Frame):
         self.selections = []
         self.formulas = []
         self.init_UI()
+        self.init_tesseract()
         self.Show(True)
 
     def init_UI(self):
@@ -134,6 +138,18 @@ class SuhpysisFrame(wx.Frame):
         self.Bind(wx.EVT_TIMER, self.on_timer)
         self.timer.Start(1000)
 
+    def init_tesseract(self):
+        """Initializes those are tesseract related"""
+        config = {
+            'tessedit_char_whitelist': '0123456789.',
+        }
+        tessearct_config_file = tempfile.NamedTemporaryFile(delete=False)
+        self.tessearct_config_filename = tessearct_config_file.name
+        tessearct_config_file.write('\n'.join(
+            ' '.join(x) for x in config.items()
+        ))
+        tessearct_config_file.close()
+
     def add_selection(self, event):
         """Adds a selection."""
         selection = Selection(self, len(self.selections) + 1)
@@ -161,7 +177,12 @@ class SuhpysisFrame(wx.Frame):
                 if selection.rect:
                     x0, x1, y0, y1 = selection.rect
                     img = screen_img.crop((x0, y0, x1, y1))
-                    text = pytesseract.image_to_string(img)
+                    img = img.resize(
+                        [x * 2 for x in img.size], resample=PIL.Image.BICUBIC)
+                    text = pytesseract.image_to_string(
+                        img,
+                        config='%s' % self.tessearct_config_filename
+                    )
                     if not text:
                         text = 'None'
                     selection.st_value.SetLabel(text)
