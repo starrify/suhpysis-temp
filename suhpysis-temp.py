@@ -33,6 +33,7 @@ class Selection(object):
 
     def __init__(self, parent, default_var_id=0):
         """Initializes the class."""
+        self.parent = parent
         self.rect = None
         self.hbox = wx.BoxSizer(wx.HORIZONTAL)
         var_name = 'var%d' % default_var_id
@@ -50,6 +51,10 @@ class Selection(object):
 
     def pick_rect(self, event):
         """Picks an rectangle"""
+        if not self.parent.picking:
+            self.parent.picking = True
+        else:
+            return
         screen_img = pyscreenshot.grab()
         self.fig = matplotlib.pyplot.figure()
         self.sub_plt = self.fig.add_subplot(1, 1, 1)
@@ -65,6 +70,7 @@ class Selection(object):
             }
         )
         matplotlib.pyplot.show()
+        self.parent.picking = False
 
     def pick_callback(self, event_click, event_release):
         """Invokes when a rectangle picked."""
@@ -104,6 +110,7 @@ class SuhpysisFrame(wx.Frame):
         self.init_UI()
         self.init_tesseract()
         self.Show(True)
+        self.picking = False
 
     def init_UI(self):
         """Initializes the UI."""
@@ -170,6 +177,8 @@ class SuhpysisFrame(wx.Frame):
 
     def on_timer(self, event):
         """Callback on timer."""
+        if self.picking:
+            return
         if self.selections and any(x.rect for x in self.selections):
             screen_img = pyscreenshot.grab()
             data = {}
@@ -177,14 +186,18 @@ class SuhpysisFrame(wx.Frame):
                 if selection.rect:
                     x0, x1, y0, y1 = selection.rect
                     img = screen_img.crop((x0, y0, x1, y1))
-                    img = img.resize(
-                        [x * 2 for x in img.size], resample=PIL.Image.BICUBIC)
+                    size = list(img.size)
+                    while min(size) < 64:
+                        size = [x * 2 for x in size]
+                    if size != list(img.size):
+                        img = img.resize(size, resample=PIL.Image.BICUBIC)
                     text = pytesseract.image_to_string(
                         img,
                         config='%s' % self.tessearct_config_filename
                     )
                     if not text:
                         text = 'None'
+                    text = text.replace(' ', '')
                     selection.st_value.SetLabel(text)
                     name = selection.tc_name.GetValue()
                     data[name] = text
