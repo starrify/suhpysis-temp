@@ -11,7 +11,9 @@ import matplotlib.pyplot
 import matplotlib.widgets
 import pytesseract
 
-import RectangleSelectorPanel
+# For fixing pyinstaller issues
+import Tkinter
+import FileDialog
 
 
 __copyright__ = 'Pengyu Chen (pengyu[at]libstarrify.so)'
